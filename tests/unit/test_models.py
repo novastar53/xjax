@@ -320,7 +320,7 @@ def test_nlp_jax_sgns(rng: jax.Array):
     vocab_size = 5
     K=1
 
-    # I create the frequent word-pair sentence dataset
+    # I generate a frequent word-pair sentence dataset
     sentences = xjax.datasets.freq_word_pair()
 
     # 
@@ -391,7 +391,7 @@ def test_nlp_jax_sgns(rng: jax.Array):
     #
 
 
-    # the cosine similarity between the two most frequently adjacent words should be higher
+    # The cosine similarity between the two most frequently adjacent words should be higher
     # than that between two words that are never adjacent in the dataset
     
     def similarity_score(word1, word2):
