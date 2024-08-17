@@ -69,7 +69,7 @@ def train(
         batch_size: int | None = None,
         learning_rate: float | None = None,
 ) -> Parameters:
-    """Train the Skipgram-with-Negative-Sampling model"""
+    """Train the SGNS model."""
 
     epochs = default_arg(epochs, 1)
     batch_size = default_arg(batch_size, 1)
@@ -77,7 +77,7 @@ def train(
 
     start_time = time()
 
-    # set up optimizer 
+    # Set up optimizer 
     optimizer = optax.adam(learning_rate=learning_rate)
     optimizer_state = optimizer.init(params)
 
@@ -96,7 +96,7 @@ def train(
             batch = _batch(rng=rng, vocab_size=params.shape[0], batch_size=batch_size, neg_per_pos=neg_per_pos, dataset=X)
             params, optimizer_state, loss = step_fn(optimizer_state, params, batch)
         
-        #Emit signal
+        # Emit signal
         train_epoch_completed.send(model, epoch=epoch, loss=loss, elapsed=(time() - start_time))
     
     return params
@@ -119,10 +119,10 @@ def _loss(model, K, params, X_batch) -> float:
 
     pos_logits, neg_logits = model(params, X_batch)
 
-    # first look at pos samples
+    # First look at pos samples
     loss = optax.losses.sigmoid_binary_cross_entropy(pos_logits, jnp.ones(pos_logits.size)).mean()
 
-    # then look at neg samples
+    # Then look at neg samples
     loss += K*optax.losses.sigmoid_binary_cross_entropy(neg_logits, jnp.zeros(neg_logits.size)).mean()
 
     return loss
