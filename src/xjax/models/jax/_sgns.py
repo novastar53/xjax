@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 class SGNS:
 
-    def __call__(params, X):
+    def __call__(self, params, X):
 
         pos_idxs, neg_idxs = X
 
@@ -93,7 +93,7 @@ def train(
         # Iterate over batches
         loss = None
         for i in range(num_iter):
-            batch = _batch(rng=rng, batch_size=batch_size, neg_per_pos=neg_per_pos, dataset=X)
+            batch = _batch(rng=rng, vocab_size=params.shape[0], batch_size=batch_size, neg_per_pos=neg_per_pos, dataset=X)
             params, optimizer_state, loss = step_fn(optimizer_state, params, batch)
         
         #Emit signal

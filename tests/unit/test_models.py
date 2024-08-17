@@ -3,7 +3,7 @@ import logging
 import jax
 import jax.numpy as jnp
 
-
+import pytest
 from pytest import approx
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
@@ -305,7 +305,8 @@ def test_torch_2x5x1_circle(rng: jax.Array):
     assert auroc > 0.8
 
 
-def test_nlp_jax_sgns_simpsons(rng: jax.Array):
+@pytest.mark.nlp
+def test_nlp_jax_sgns(rng: jax.Array):
     #
     # Givens
     #
@@ -326,28 +327,28 @@ def test_nlp_jax_sgns_simpsons(rng: jax.Array):
     # Whens
     #
 
-    # I preprocess the dataset
+    # I preprocess the sentences
     from collections import Counter
 
-    # count tokens
+    # I count the tokens
     tokens = []
-    for sentence in dataset:
+    for sentence in sentences:
         for tok in sentence:
             tokens.append(tok)
 
-    # generate vocab
+    # I generate a vocab
     counts = Counter(tokens).items()
     sorted_counts = sorted(counts, key=lambda k: k[1], reverse=True)
     vocab = sorted_counts[:vocab_size]
 
-    # generate token lookup
+    # I generate a token lookup
     idx_to_tok = dict()
     tok_to_idx = dict()
     for idx,(tok, count) in enumerate(vocab):
         idx_to_tok[idx] = tok
         tok_to_idx[tok] = idx
     
-    # generate positive examples
+    # I generate positive examples
     len_buffer = window_size//2
 
     def gen_pos_examples():
@@ -367,7 +368,7 @@ def test_nlp_jax_sgns_simpsons(rng: jax.Array):
 
 
     # I create a skipgram model
-    model, params = xjax.models.jax.sgns(rng, vocab_size=vocab_size, 
+    model, params = xjax.models.sgns.sgns(rng=rng, vocab_size=vocab_size, 
                                  embedding_size=embedding_size)
 
     # I log events
@@ -376,13 +377,13 @@ def test_nlp_jax_sgns_simpsons(rng: jax.Array):
         logger.info(f"epoch={epoch}, loss={loss:0.4f}, elapsed={elapsed:0.4f}")
     
     # I train the model
-    params = xjax.models.jax.train(model, rng=rng, params=params,
-                                  X=pos_examples,
-                                neg_per_pos=neg_per_pos,
-                                 K= 1,
-                                 epochs=num_epochs,
-                                 batch_size=batch_size,
-                                 learning_rate=0.01)
+    params = xjax.models.sgns.train(model, rng=rng, params=params,
+                                   X=pos_examples,
+                                   neg_per_pos=neg_per_pos,
+                                   K= 1,
+                                   epochs=num_epochs,
+                                   batch_size=batch_size,
+                                   learning_rate=0.01)
 
 
     #
@@ -390,8 +391,8 @@ def test_nlp_jax_sgns_simpsons(rng: jax.Array):
     #
 
 
-    # the cosine similarity between the two most frquent words should be higher
-    # than the ones between two words that are never adjacent
+    # the cosine similarity between the two most frequently adjacent words should be higher
+    # than that between two words that are never adjacent in the dataset
     
     def similarity_score(word1, word2):
 

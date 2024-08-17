@@ -14,15 +14,15 @@ __all__ = [
 ]
 
 
-def freq_word_pair(*, rng: jax.Array, 
-           num_sentences: int | None = None,
+def freq_word_pair(*, num_sentences: int | None = None,
            len_sentence: int | None = None,
            vocab: List[str] | None = None,
-           freq_pair: Tuple[str, str]) -> List[List[str]]:
+           freq_pair: Tuple[str, str] | None=None) -> List[List[str]]:
     """Generate a text dataset where a word pair is far more frequently adjacent"""
     #Default
     num_sentences = default_arg(num_sentences, 5)
     len_sentence = default_arg(len_sentence, 3)
+    freq_pair = default_arg(freq_pair, ("apple", "banana"))
 
     vocab = default_arg(vocab, ["apple", "banana", "grape", "peach", "orange"])
 
@@ -42,7 +42,7 @@ def freq_word_pair(*, rng: jax.Array,
                 i = sentence.index(f"{freq_pair[0]}-{freq_pair[1]}")
                 new_sentence = sentence[:i] + (freq_pair[0], freq_pair[1]) + sentence[i+1:]
                 sentences.append(new_sentence)
-            return
+                return
         
         if len(sentence) == len_sentence and f"{freq_pair[0]}-{freq_pair[1]}" not in sentence:
             sentences.append(sentence)
@@ -56,7 +56,8 @@ def freq_word_pair(*, rng: jax.Array,
         dfs(random_sentences, vocab[:i]+vocab[i+1:], (vocab[i],))
 
     # then generate num_sentences - n sentences with the chosen word-pair
-    # always adjacent
+    # always adjacent to each other
+    n = num_sentences - n
 
     # remove the more frequent pair first
     vocab.remove(freq_pair[0])
@@ -65,14 +66,14 @@ def freq_word_pair(*, rng: jax.Array,
     # add them to the vocabulary as a single token
     vocab.append(f"{freq_pair[0]}-{freq_pair[1]}")
 
+
     freq_sentences = []
-    # generate new sentences
     for i in range(len(vocab)):
-        dfs(vocab[:i]+vocab[i+1:], (vocab[i],))
+        dfs(freq_sentences, vocab[:i]+vocab[i+1:], (vocab[i],))
 
     sentences = random_sentences + freq_sentences
-   
-    assert(len(sentences)) == num_sentences
+
+    assert(len(sentences) == num_sentences)
 
     return sentences
 
