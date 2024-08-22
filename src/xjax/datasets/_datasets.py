@@ -14,11 +14,12 @@ __all__ = [
 ]
 
 
+
 def freq_word_pair(*, num_sentences: int | None = None,
            len_sentence: int | None = None,
            vocab: List[str] | None = None,
            freq_pair: Tuple[str, str] | None=None) -> List[List[str]]:
-    """Generate a text dataset consisting of sentences where a choen word-pair is frequently adjacent"""
+    """Generate a text dataset consisting of sentences where a chosen word-pair is frequently adjacent"""
 
     # Defaults
     num_sentences = default_arg(num_sentences, 5)

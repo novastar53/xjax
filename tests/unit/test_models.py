@@ -15,6 +15,7 @@ from xjax.signals import train_epoch_completed
 logger = logging.getLogger(__name__)
 
 
+
 def test_lr_diagonal(rng: jax.Array):
     #
     # Givens
@@ -405,3 +406,90 @@ def test_nlp_jax_sgns(rng: jax.Array):
         return jnp.dot(emb1,emb2)/(jnp.linalg.norm(emb1)*jnp.linalg.norm(emb2))
 
     assert similarity_score("apple", "banana") > similarity_score("peach", "grape")
+
+
+
+@pytest.mark.nlp
+def test_nlp_jax_char_rnn(rng: jax.Array):
+    #
+    # Givens
+    #
+
+    # I have a test dataset consisting of dinosaur names 
+    txt = open("tests/datasets/dinos.txt", "r").read()
+
+    # I clean the data
+    txt = txt.lower()
+    lines = [ l.strip() for l in txt.split("\n") ]
+
+    # I create token lookup dictionaries
+    counts = {}
+    for line in lines:
+        chars = list(line)
+        for c in chars:
+            if c not in counts:
+                counts[c] = 1
+            else:
+                counts[c] += 1
+
+    vocab = sorted(list(counts.keys()))
+    tok_to_idx = {}
+    idx_to_tok = {}
+
+    for i,c in enumerate(vocab):
+        tok_to_idx[c] = i
+        idx_to_tok[i] = c
+
+    # add the stop character
+    tok_to_idx["\n"] = 26
+    idx_to_tok[26] = "\n"
+
+    # I generate the dataset 
+    dataset = []
+    for line in lines:
+        x = [ tok_to_idx[c] for c in line ]
+        dataset.append(x)
+
+    #
+    # Whens
+    #
+
+    # I define hyperparameters
+    HIDDEN_SIZE = 100
+    VOCAB_SIZE = len(tok_to_idx)
+    learning_rate = 0.001
+    epochs = 50
+
+    # I define a character-rnn model
+    params, model = xjax.models.char_rnn.char_rnn(rng, 27, HIDDEN_SIZE)
+
+    # I log events
+    @train_epoch_completed.connect_via(model)
+    def collect_events(_, *, epoch, loss, elapsed, **__):
+        logger.info(f"epoch={epoch}, loss={loss:0.4f}, elapsed={elapsed:0.4f}")
+
+    # I train a character RNN model on the data 
+    trained_params = xjax.models.char_rnn.train(model, rng=rng, params=params, X_train=dataset, vocab_size=VOCAB_SIZE, epochs=epochs, learning_rate=learning_rate)
+
+    # I generate sequences from a prefix
+    prefix_str = "par"
+    prefix = [tok_to_idx[c] for c in prefix_str]
+    generated = []
+    for i in range(20):
+        rng, sub_rng = jax.random.split(rng)
+        y = xjax.models.char_rnn.generate(rng=sub_rng, prefix= prefix, params=trained_params, hidden_size=HIDDEN_SIZE, vocab_size=VOCAB_SIZE) 
+        generated.append(y)
+
+    # 
+    # Thens 
+    #
+
+    # The predictions should have a 'high' probability of ending with 'us'
+    num_correct = 0
+    for g in generated:
+        logger.info("".join([idx_to_tok[i] for i in g]))
+        logger.info("".join([idx_to_tok[i] for i in g[-3:]]))
+        if "".join([idx_to_tok[i] for i in g[-3:]]) == "us\n":
+            num_correct += 1
+
+    assert(num_correct >= 2)
