@@ -315,9 +315,9 @@ def test_nlp_jax_sgns(rng: jax.Array):
     # Hyperparams
     embedding_size = 2
     batch_size = 10
-    neg_per_pos = 5
-    num_epochs = 5
-    window_size = 2
+    neg_per_pos = 20
+    num_epochs = 3
+    window_size = 3
     vocab_size = 5
     K=1
 
@@ -440,15 +440,20 @@ def test_nlp_jax_char_rnn(rng: jax.Array):
         tok_to_idx[c] = i
         idx_to_tok[i] = c
 
-    # add the stop character
+    # I add the stop character
     tok_to_idx["\n"] = 26
     idx_to_tok[26] = "\n"
 
     # I generate the dataset 
-    dataset = []
+
+    VOCAB_SIZE = len(tok_to_idx)
+
+    X = []
+    Y = []
     for line in lines:
-        x = [ tok_to_idx[c] for c in line ]
-        dataset.append(x)
+        tokens = [ tok_to_idx[c] for c in line ]
+        X.append(jnp.array([VOCAB_SIZE] + tokens))
+        Y.append(jnp.array(tokens + [VOCAB_SIZE]))
 
     #
     # Whens
@@ -456,9 +461,9 @@ def test_nlp_jax_char_rnn(rng: jax.Array):
 
     # I define hyperparameters
     HIDDEN_SIZE = 100
-    VOCAB_SIZE = len(tok_to_idx)
-    learning_rate = 0.001
-    epochs = 50
+    learning_rate = 0.01
+    max_grad = 20
+    epochs = 100
 
     # I define a character-rnn model
     params, model = xjax.models.char_rnn.char_rnn(rng, 27, HIDDEN_SIZE)
@@ -469,10 +474,13 @@ def test_nlp_jax_char_rnn(rng: jax.Array):
         logger.info(f"epoch={epoch}, loss={loss:0.4f}, elapsed={elapsed:0.4f}")
 
     # I train a character RNN model on the data 
-    trained_params = xjax.models.char_rnn.train(model, rng=rng, params=params, X_train=dataset, vocab_size=VOCAB_SIZE, epochs=epochs, learning_rate=learning_rate)
+    trained_params = xjax.models.char_rnn.train(model, rng=rng, params=params, X_train=X, Y_train=Y,
+                                                 vocab_size=VOCAB_SIZE, epochs=epochs,
+                                                   learning_rate=learning_rate,
+                                                   max_grad=max_grad)
 
     # I generate sequences from a prefix
-    prefix_str = "par"
+    prefix_str = "p"
     prefix = [tok_to_idx[c] for c in prefix_str]
     generated = []
     for i in range(20):
@@ -487,8 +495,6 @@ def test_nlp_jax_char_rnn(rng: jax.Array):
     # The predictions should have a 'high' probability of ending with 'us'
     num_correct = 0
     for g in generated:
-        logger.info("".join([idx_to_tok[i] for i in g]))
-        logger.info("".join([idx_to_tok[i] for i in g[-3:]]))
         if "".join([idx_to_tok[i] for i in g[-3:]]) == "us\n":
             num_correct += 1
 
