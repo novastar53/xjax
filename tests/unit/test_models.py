@@ -14,8 +14,6 @@ from xjax.signals import train_epoch_completed
 # Module logger
 logger = logging.getLogger(__name__)
 
-
-
 def test_lr_diagonal(rng: jax.Array):
     #
     # Givens
@@ -499,3 +497,12 @@ def test_nlp_jax_char_rnn(rng: jax.Array):
             num_correct += 1
 
     assert(num_correct >= 2)
+
+
+@pytest.mark.nlp
+@pytest.mark.gru
+def test_nlp_jax_gru(rng: jax.Array):
+
+    params, model = xjax.models.gru.gru(rng, 10, 20)
+
+    assert(len(params) == 11)
