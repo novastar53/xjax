@@ -58,7 +58,9 @@ def mlp(
     return model
 
 
-def train[MT: nn.Module](
+def train[
+    MT: nn.Module
+](
     model: MT,
     *,
     X: Array,
@@ -116,7 +118,9 @@ def train[MT: nn.Module](
             optimizer.step()
 
         # Emit signal
-        train_epoch_completed.send(model, epoch=epoch, loss=loss, elapsed=(time() - start_time))
+        train_epoch_completed.send(
+            model, epoch=epoch, loss=loss, elapsed=(time() - start_time)
+        )
 
     return model
 

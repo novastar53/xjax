@@ -25,8 +25,6 @@ Parameters = Mapping[str, Any]
 logger = logging.getLogger(__name__)
 
 
-
-
 class MLP(nn.Module):
     """Basic fully-connected feedforward neural network."""
 
@@ -112,10 +110,14 @@ def train(
         # Iterate over batches
         loss = None
         for i in range(len(X_batches)):
-            params, optimizer_state, loss = step_fn(optimizer_state, params, X_batches[i], y_batches[i])
+            params, optimizer_state, loss = step_fn(
+                optimizer_state, params, X_batches[i], y_batches[i]
+            )
 
         # Emit signal
-        train_epoch_completed.send(model, epoch=epoch, loss=loss, elapsed=(time() - start_time))
+        train_epoch_completed.send(
+            model, epoch=epoch, loss=loss, elapsed=(time() - start_time)
+        )
 
     return params
 
@@ -142,7 +144,9 @@ def _batch(X: Array, y: Array, batch_size: int) -> tuple[list[Array], list[Array
     return X_batches, y_batches
 
 
-def _loss(model: nn.Module, params: Parameters, X_batch: Array, y_batch: Array) -> float:
+def _loss(
+    model: nn.Module, params: Parameters, X_batch: Array, y_batch: Array
+) -> float:
     # Apply model
     logits = model.apply(params, X_batch)
 
