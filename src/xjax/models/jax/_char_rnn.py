@@ -201,9 +201,7 @@ def _loss(model, params, h, X_batch, y_batch):
 
     _, y_logits = model(params, h, X_batch)
 
-    loss = optax.sigmoid_binary_cross_entropy(y_logits, y_batch).mean()
-
-    return loss
+    return optax.sigmoid_binary_cross_entropy(y_logits, y_batch).mean()
 
 
 def _step(loss_fn, optimizer, max_grad, optimizer_state, params, X_batch, Y_batch):

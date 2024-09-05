@@ -1,6 +1,7 @@
 from typing import List
+from functools import partial
 
-import time
+from time import time
 
 import jax
 import optax
@@ -8,6 +9,7 @@ from jax import Array
 import jax.numpy as jnp
 
 from xjax.tools import default_arg
+from xjax.signals import train_epoch_started, train_epoch_completed
 
 
 Parameters = List[Array]
@@ -18,6 +20,7 @@ __all__ = [
     "train",
     "predict",
     "generate",
+    "_sample",
 ]
 
 
@@ -28,7 +31,7 @@ def _sgm(x):
 class GRU:
 
     # Calculate the forward pass
-    def __call__(*, params: Parameters, H: Array, X: List[Array]):
+    def __call__(self, *, params: Parameters, H: Array, X: Array):
 
         # Extract the parameters
         Wxr, Whr, Wxz, Whz, Wxh, Whh, Why, br, bz, bh, by = params
@@ -37,7 +40,7 @@ class GRU:
         Y = jnp.zeros_like(X)
 
         # Loop over the inputs
-        for i in range(len(X[0])):
+        for i in range(X.shape[0]):
             Xt = jnp.expand_dims(X[i, :], 1)
             # First calculate the Reset and Update gates
             R = _sgm(jnp.dot(Wxr, Xt) + jnp.dot(Whr, H) + br)
@@ -116,6 +119,40 @@ def gru(rng: Array, vocab_size: int, hidden_size: int):
 
     return (Wxr, Whr, Wxz, Whz, Wxh, Whh, Why, br, bz, bh, by), gru
 
+def _sample(
+    rng: Array, X: List[Array], Y: List[Array], vocab_size: int
+) -> tuple[Array, Array]:
+
+    # Pick a random index from the dataset
+    i = jax.random.randint(rng, (1,), 0, len(X))[0]
+
+    # Convert to one-hot representation
+    x_out = jnp.eye(vocab_size)[X[i], :]
+    y_out = jnp.eye(vocab_size)[Y[i], :]
+
+    return x_out, y_out
+
+
+def _loss(model: GRU, params: Parameters, H: Array, X_batch: Array, Y_batch: Array):
+
+    _, Y_logits = model(params=params, 
+                        H=H, 
+                        X=X_batch)
+
+    return optax.sigmoid_binary_cross_entropy(Y_logits, Y_batch).mean()
+
+def _step(loss_fn, optimizer, max_grad, optimizer_state, params, X_batch, Y_batch):
+
+    hidden_size = X_batch[0].shape[0]
+
+    H = jnp.zeros((hidden_size,1))
+    loss, grads = loss_fn(params, H, X_batch, Y_batch)
+    clipped_grads = tuple(jnp.clip(grad, -max_grad, max_grad) for grad in grads)
+    updates, optimizer_state = optimizer.update(clipped_grads, optimizer_state)
+    params = optax.apply_updates(params, updates)
+
+    return params, optimizer_state, loss
+
 
 def train(
     model: GRU,
@@ -128,37 +165,53 @@ def train(
     batch_size: int | None = None,
     num_epochs: int | None = None,
     learning_rate: int | None = None,
+    max_grad: int | None = None,
 ) -> Parameters:
 
     # get default vaules
     batch_size = default_arg(batch_size, 32)
     num_epochs = default_arg(num_epochs, 10)
     learning_rate = default_arg(learning_rate, 10**-3)
+    max_grad = default_arg(max_grad, 10**(-3))
 
-    start_time = time.time()
+    start_time = time()
 
     # set up the optimizer
     optimizer = optax.adam(learning_rate=learning_rate)
     optimizer_state = optimizer.init(params)
 
     # set up the loss function
+    loss_fn = partial(_loss, model)
+    step_fn = partial(_step, loss_fn, optimizer, max_grad)
 
     # loop through epochs
 
-    # generate a mini-batch
+    loss = None
+    for epoch in range(num_epochs):
 
-    # do a forward pass
+        # Emit signal
+        train_epoch_started.send(model, epoch=epoch, elapsed=(time() - start_time))
 
-    # compute gradients
+        epoch_loss = 0
+        for _ in range(len(X)):
+            rng, sub_rng = jax.random.split(rng)
+            X, Y = _sample(sub_rng, X, Y, vocab_size)
+            params, optimizer_state, loss = step_fn(optimizer_state, params, X, Y)
+            epoch_loss += loss
 
-    # update parameters
+        # Emit signal
+        train_epoch_completed.send(
+            model, epoch=epoch, loss=loss, elapsed=(time() - start_time)
+        )
 
 
 def predict(
     model: GRU, *, rng: Array, params: Parameters, vocab_size: int, h: Array, x: Array
 ):
 
-    h, y_logits = model(params, h, x)
+    h, y_logits = model(params=params, 
+                        H=h, 
+                        X=x)
     y_pred = jax.nn.softmax(y_logits, axis=1)
 
     # randomly select an output token based on the probabilities
