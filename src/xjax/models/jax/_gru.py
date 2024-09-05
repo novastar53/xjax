@@ -203,6 +203,8 @@ def train(
         train_epoch_completed.send(
             model, epoch=epoch, loss=loss, elapsed=(time() - start_time)
         )
+    
+    return params
 
 
 def predict(
@@ -223,7 +225,7 @@ def predict(
 
 
 def generate(
-    rng: Array, prefix: List[int], params: Parameters, hidden_size: int, vocab_size: int
+    rng: Array, prefix: List[int], params: Parameters, hidden_size: int, vocab_size: int, max_len: int,
 ) -> List[int]:
 
     # initialize the model and hidden state
@@ -258,3 +260,8 @@ def generate(
 
         # look up the token and add to final result
         result.append(idx_y)
+
+        if len(result) >= max_len:
+            break
+
+    return result
