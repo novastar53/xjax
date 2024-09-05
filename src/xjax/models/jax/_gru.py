@@ -201,7 +201,7 @@ def train(
 
         # Emit signal
         train_epoch_completed.send(
-            model, epoch=epoch, loss=loss, elapsed=(time() - start_time)
+            model, epoch=epoch, loss=epoch_loss, elapsed=(time() - start_time)
         )
     
     return params
