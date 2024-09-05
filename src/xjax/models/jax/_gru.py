@@ -58,7 +58,7 @@ class GRU:
             Y = Y.at[i].set(Yt)
 
         # Return the updated Hidden State and the output logits
-        return Y
+        return H, Y
 
 
 def _init_W(rng: Array, dim1: int, dim2: int, sigma=0.01):
@@ -143,7 +143,7 @@ def _loss(model: GRU, params: Parameters, H: Array, X_batch: Array, Y_batch: Arr
 
 def _step(loss_fn, optimizer, max_grad, optimizer_state, params, X_batch, Y_batch):
 
-    hidden_size = X_batch[0].shape[0]
+    hidden_size = params[0].shape[0]
 
     H = jnp.zeros((hidden_size,1))
     loss, grads = loss_fn(params, H, X_batch, Y_batch)
@@ -181,8 +181,8 @@ def train(
     optimizer_state = optimizer.init(params)
 
     # set up the loss function
-    loss_fn = partial(_loss, model)
-    step_fn = partial(_step, loss_fn, optimizer, max_grad)
+    loss_fn = jax.value_and_grad(partial(_loss, model))
+    step_fn = jax.jit(partial(_step, loss_fn, optimizer, max_grad))
 
     # loop through epochs
 
@@ -195,8 +195,8 @@ def train(
         epoch_loss = 0
         for _ in range(len(X)):
             rng, sub_rng = jax.random.split(rng)
-            X, Y = _sample(sub_rng, X, Y, vocab_size)
-            params, optimizer_state, loss = step_fn(optimizer_state, params, X, Y)
+            X_batch, Y_batch = _sample(sub_rng, X, Y, vocab_size)
+            params, optimizer_state, loss = step_fn(optimizer_state, params, X_batch, Y_batch)
             epoch_loss += loss
 
         # Emit signal
