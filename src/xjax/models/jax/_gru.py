@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Any
 from functools import partial
 
 from time import time
@@ -7,6 +7,8 @@ import jax
 import optax
 from jax import Array
 import jax.numpy as jnp
+from jax import random
+from jax.nn import log_softmax
 
 from xjax.tools import default_arg
 from xjax.signals import train_epoch_started, train_epoch_completed
@@ -37,11 +39,12 @@ class GRU:
         Wxr, Whr, Wxz, Whz, Wxh, Whh, Why, br, bz, bh, by = params
 
         # Initialize the output logits
-        Y = jnp.zeros_like(X)
+        Y = []
 
-        # Loop over the inputs
-        for i in range(X.shape[0]):
-            Xt = jnp.expand_dims(X[i, :], 1)
+        # Loop over the sequence
+        for i in range(X.shape[1]):
+            # Select the ith sequence and the entire minibatch
+            Xt = X[:, i, :].T  # vocab size x 1 x batch size
             # First calculate the Reset and Update gates
             R = _sgm(jnp.dot(Wxr, Xt) + jnp.dot(Whr, H) + br)
             Z = _sgm(jnp.dot(Wxz, Xt) + jnp.dot(Whz, H) + bz)
@@ -52,13 +55,13 @@ class GRU:
 
             # Finally, calculate the output logits
             Yt = jnp.dot(Why, H) + by
-            Yt = jnp.squeeze(Yt)
+            #Yt = jnp.squeeze(Yt)
 
             # Update the output sequence
-            Y = Y.at[i].set(Yt)
+            Y.append(Yt)
 
         # Return the updated Hidden State and the output logits
-        return H, Y
+        return H, jnp.stack(Y)
 
 
 def _init_W(rng: Array, dim1: int, dim2: int, sigma=0.01):
@@ -120,15 +123,15 @@ def gru(rng: Array, vocab_size: int, hidden_size: int):
     return (Wxr, Whr, Wxz, Whz, Wxh, Whh, Why, br, bz, bh, by), gru
 
 def _sample(
-    rng: Array, X: List[Array], Y: List[Array], vocab_size: int
+    rng: Array, X: List[Array], Y: List[Array], batch_size: int, vocab_size: int
 ) -> tuple[Array, Array]:
 
-    # Pick a random index from the dataset
-    i = jax.random.randint(rng, (1,), 0, len(X))[0]
+    # Pick a set of random indices from the dataset
+    idxs = jax.random.randint(rng, (batch_size,), 0, len(X))
 
     # Convert to one-hot representation
-    x_out = jnp.eye(vocab_size)[X[i], :]
-    y_out = jnp.eye(vocab_size)[Y[i], :]
+    x_out = jnp.eye(vocab_size)[X[idxs], :]
+    y_out = jnp.eye(vocab_size)[Y[idxs], :]
 
     return x_out, y_out
 
@@ -138,13 +141,12 @@ def _loss(model: GRU, params: Parameters, H: Array, X_batch: Array, Y_batch: Arr
     _, Y_logits = model(params=params, 
                         H=H, 
                         X=X_batch)
-
+    Y_batch = jnp.transpose(Y_batch, (1, 2, 0))
     return optax.sigmoid_binary_cross_entropy(Y_logits, Y_batch).mean()
 
 def _step(loss_fn, optimizer, max_grad, optimizer_state, params, X_batch, Y_batch):
 
     hidden_size = params[0].shape[0]
-
     H = jnp.zeros((hidden_size,1))
     loss, grads = loss_fn(params, H, X_batch, Y_batch)
     clipped_grads = tuple(jnp.clip(grad, -max_grad, max_grad) for grad in grads)
@@ -159,8 +161,10 @@ def train(
     *,
     rng: Array,
     params: Parameters,
-    X: jax.Array,
-    Y: jax.Array,
+    X_train: jax.Array,
+    Y_train: jax.Array,
+    X_valid: jax.Array,
+    Y_valid: jax.Array,
     vocab_size,
     batch_size: int | None = None,
     num_epochs: int | None = None,
@@ -172,7 +176,7 @@ def train(
     batch_size = default_arg(batch_size, 32)
     num_epochs = default_arg(num_epochs, 10)
     learning_rate = default_arg(learning_rate, 10**-3)
-    max_grad = default_arg(max_grad, 10**(-3))
+    max_grad = default_arg(max_grad, 1)
 
     start_time = time()
 
@@ -190,19 +194,31 @@ def train(
     for epoch in range(num_epochs):
 
         # Emit signal
-        train_epoch_started.send(model, epoch=epoch, elapsed=(time() - start_time))
+        #train_epoch_started.send(model, epoch=epoch, elapsed=(time() - start_time))
 
         epoch_loss = 0
-        for _ in range(len(X)):
+        for _ in range(len(X_train)//batch_size):
             rng, sub_rng = jax.random.split(rng)
-            X_batch, Y_batch = _sample(sub_rng, X, Y, vocab_size)
+            X_batch, Y_batch = _sample(sub_rng, X_train, Y_train, batch_size, vocab_size)
             params, optimizer_state, loss = step_fn(optimizer_state, params, X_batch, Y_batch)
             epoch_loss += loss
 
         # Emit signal
-        train_epoch_completed.send(
-            model, epoch=epoch, loss=epoch_loss, elapsed=(time() - start_time)
-        )
+        if epoch % 20 == 0:
+            # Calculate validation loss 
+            rng, sub_rng = jax.random.split(rng)
+            X_valid_onehot = jnp.eye(vocab_size)[X_valid, :]
+            Y_valid_onehot = jnp.eye(vocab_size)[Y_valid, :]
+            hidden_size = params[0].shape[0]
+            H = jnp.zeros((hidden_size,1))
+            valid_loss = _loss(model, params, H, X_valid_onehot, Y_valid_onehot)
+            train_epoch_completed.send(
+                model, epoch=epoch, 
+                train_loss=epoch_loss, 
+                valid_loss=valid_loss,
+                elapsed=(time() - start_time)
+            )
+
     
     return params
 
@@ -228,40 +244,44 @@ def generate(
     rng: Array, prefix: List[int], params: Parameters, hidden_size: int, vocab_size: int, max_len: int,
 ) -> List[int]:
 
-    # initialize the model and hidden state
+    # Initialize the model and hidden state
     model = GRU()
-    h = jnp.zeros((hidden_size, 1))
+    H = jnp.zeros((hidden_size, 1))
 
-    # create the initial input vector
-    result = []
-    x = jnp.zeros((1, vocab_size))
-    for i in prefix:
-        result.append(i)
-        x = x.at[0, i].set(1)
+    # Feed the prefix to the model
+    X = jnp.eye(vocab_size)[prefix, :]
+    X = jnp.expand_dims(X, 0) # 1 x seq len x vocab 
+    H, Y_pred = model(params=params, H=H, X=X)
+    probs = jax.nn.softmax(jnp.squeeze(Y_pred[-1,:]))
+    pred_token_idx = random.categorical(rng, jnp.log(probs))
 
-    idx_y = prefix[-1]
 
-    # Assume that the last token in the vocab is the stop character
-    # and terminate if the stop token is generated
-    while idx_y != vocab_size - 1:
+    # Append the final predicted token to the output
+    output = prefix.copy()
+    #output.append(int(pred_token_idx))
 
-        rng, sub_rng = jax.random.split(rng)
+    # Prepare the final output to feed back into the model
+    Y_pred = jnp.squeeze(Y_pred)
+    Y_pred = jnp.expand_dims(Y_pred[-1, :], axis=(0,1))
 
-        h, y = predict(
-            model, rng=sub_rng, params=params, vocab_size=vocab_size, h=h, x=x
-        )
+    # Collect predictions from the model
+    for _ in range(max_len):
 
-        # get the predicted token
-        idx_y = int(jnp.argmax(y))
+        # Feed the previous output into the model
+        H, Y_pred = model(params=params, H=H, X=Y_pred)
 
-        # update the input vector
-        x = jnp.zeros((1, vocab_size))
-        x = x.at[0, idx_y].set(1)
+        # Retrieve the token and append to output
+        Y_pred = Y_pred.squeeze()
+        probs = jax.nn.softmax(Y_pred)
+        rng, sub_rng = random.split(rng)
+        pred_token_idx = random.categorical(sub_rng, jnp.log(probs))
+        #pred_token_idx = jnp.argmax(Y_pred)
+        output.append(int(pred_token_idx))
 
-        # look up the token and add to final result
-        result.append(idx_y)
+        # Reformat the output for the model
+        Y_pred = jnp.eye(vocab_size)[pred_token_idx, :]
+        Y_pred = jnp.expand_dims(Y_pred, axis=(0,1))
 
-        if len(result) >= max_len:
-            break
+    return output
 
-    return result
+    
