@@ -147,7 +147,8 @@ def _loss(model: GRU, params: Parameters, H: Array, X_batch: Array, Y_batch: Arr
 def _step(loss_fn, optimizer, max_grad, optimizer_state, params, X_batch, Y_batch):
 
     hidden_size = params[0].shape[0]
-    H = jnp.zeros((hidden_size,1))
+    batch_size = X_batch.shape[0]
+    H = jnp.zeros((hidden_size,batch_size))
     loss, grads = loss_fn(params, H, X_batch, Y_batch)
     clipped_grads = tuple(jnp.clip(grad, -max_grad, max_grad) for grad in grads)
     updates, optimizer_state = optimizer.update(clipped_grads, optimizer_state)
@@ -210,7 +211,8 @@ def train(
             X_valid_onehot = jnp.eye(vocab_size)[X_valid, :]
             Y_valid_onehot = jnp.eye(vocab_size)[Y_valid, :]
             hidden_size = params[0].shape[0]
-            H = jnp.zeros((hidden_size,1))
+            valid_set_size = X_valid.shape[0]
+            H = jnp.zeros((hidden_size,valid_set_size))
             valid_loss = _loss(model, params, H, X_valid_onehot, Y_valid_onehot)
             train_epoch_completed.send(
                 model, epoch=epoch, 
@@ -255,16 +257,12 @@ def generate(
     probs = jax.nn.softmax(jnp.squeeze(Y_pred[-1,:]))
     pred_token_idx = random.categorical(rng, jnp.log(probs))
 
-
-    # Append the final predicted token to the output
-    output = prefix.copy()
-    #output.append(int(pred_token_idx))
-
     # Prepare the final output to feed back into the model
     Y_pred = jnp.squeeze(Y_pred)
     Y_pred = jnp.expand_dims(Y_pred[-1, :], axis=(0,1))
 
     # Collect predictions from the model
+    output = prefix.copy()
     for _ in range(max_len):
 
         # Feed the previous output into the model
