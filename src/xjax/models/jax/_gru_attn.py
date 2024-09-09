@@ -36,9 +36,8 @@ class BasicDotProdAttention:
     inputs: 
     """
 
-    def __call__(self, inputs: List[Array]):
+    def __call__(self, inputs: Array):
 
-        inputs = jnp.stack(inputs, axis=1) # (batch_size, timesteps, hidden_dim)
         inputs_T = jnp.transpose(inputs, (0, 2, 1)) # (batch_size, hidden_dim, timesteps)
         attn_scores = jnp.matmul(inputs, inputs_T) # (batch_size, timesteps, timesteps)
         attn_weights =  jax.nn.softmax(attn_scores, axis=2)  # (batch_size, timesteps, timesteps)
@@ -50,45 +49,40 @@ class BasicDotProdAttention:
 class GRU:
 
     # Calculate the forward pass
-    def __call__(self, *, params: Parameters, H: Array, X: Array, 
-                return_sequences: bool=True):
-
+    def __call__(self, *, params: Parameters, H: Array, X: Array):
+                
         # Extract the parameters
         Wxr, Whr, Wxz, Whz, Wxh, Whh, Why, br, bz, bh, by = params
-
         # Initialize the attention layer
         attn = BasicDotProdAttention()
-
         # Initialize the output logits
-        H_all = []
-        Y = []
-
+        Y = jnp.empty_like(X)
 
         # Loop over the sequence
         for i in range(X.shape[1]):
             # First compute the context vector using the previous Hidden states
-            Ct = attn(H_all) if len(H_all) > 0 else H
-            # Then calculate the Reset and Update gates
+            Ct = attn(H) 
+            # Then retrieve the current input token
             Xt = X[:, i, :]  # (batch_size x vocab_size)
-            R = _sgm(jnp.dot(Xt, Wxr) + jnp.dot(H, Whr) + br) # (batch_size x hidden_size)
-            Z = _sgm(jnp.dot(Xt, Wxz) + jnp.dot(H, Whz) + bz)
+            # Then retrieve the previous hidden state
+            Ht = H[:, i, :]  # (batch_size x hidden_size)
+            # Then calculate the Reset and Update gates
+            R = _sgm(jnp.dot(Xt, Wxr) + jnp.dot(Ht, Whr) + br) # (batch_size x hidden_size)
+            Z = _sgm(jnp.dot(Xt, Wxz) + jnp.dot(Ht, Whz) + bz) # (batch_size) x hidden_size)
             # Then calculate the candidate Hidden state
-            Hc = _sgm(jnp.dot(Xt, Wxh) + R * jnp.dot(H, Whh) + bh)
+            Hc = _sgm(jnp.dot(Xt, Wxh) + R * jnp.dot(Ht, Whh) + bh) # (batch_size x hidden_size)
             # Then calculate the final Hidden state
-            H = Z * H + (1 - Z) * Hc # (hidden_size x batch_size)
-            # Remember the Hidden State for the attention calculation
-            H_all.append(H)
-
-            # Finally, calculate the output logits
-            Yt = jnp.dot(jnp.concatenate((H, Ct), axis=1), Why) + by
-            #Yt = jnp.squeeze(Yt)
-
+            Ht = Z * Ht + (1 - Z) * Hc # (hidden_size x batch_size)
+            # Calculate the output logits
+            Yt = jnp.dot(jnp.concatenate((Ht, Ct), axis=1), Why) + by
             # Update the output sequence
-            Y.append(Yt)
+            Y = Y.at[:, i, :].set(Yt)
+            # Append the new Hidden State 
+            Ht = jnp.expand_dims(Ht, axis=1)
+            H = jnp.concatenate([H, Ht], axis=1)
 
         # Return the updated Hidden State and the output logits
-        return jnp.stack(H_all, axis=1) if return_sequences else H, jnp.stack(Y, axis=1)
-
+        return H, Y
 
 def _init_W(rng: Array, dim1: int, dim2: int, sigma=0.01):
     return jax.random.normal(rng, shape=(dim1, dim2)) * sigma
@@ -173,7 +167,7 @@ def _step(loss_fn, optimizer, max_grad, optimizer_state, params, X_batch, Y_batc
 
     hidden_size = params[0].shape[1]
     batch_size = Y_batch.shape[0]
-    H = jnp.zeros((batch_size, hidden_size))
+    H = jnp.zeros((batch_size, 1, hidden_size))
     loss, grads = loss_fn(params, H, X_batch, Y_batch)
     clipped_grads = tuple(jnp.clip(grad, -max_grad, max_grad) for grad in grads)
     updates, optimizer_state = optimizer.update(clipped_grads, optimizer_state)
@@ -220,8 +214,6 @@ def train(
     for epoch in range(num_epochs):
 
         # Emit signal
-        #train_epoch_started.send(model, epoch=epoch, elapsed=(time() - start_time))
-
         epoch_loss = 0
         for _ in range(len(X_train)//batch_size):
             rng, sub_rng = jax.random.split(rng)
@@ -237,7 +229,7 @@ def train(
             Y_valid_onehot = jnp.eye(vocab_size)[Y_valid, :]
             valid_set_size = X_valid.shape[0]
             hidden_size = params[0].shape[1]
-            H = jnp.zeros((valid_set_size, hidden_size))
+            H = jnp.zeros((valid_set_size, 1, hidden_size))
             valid_loss = _loss(model, params, H, X_valid_onehot, Y_valid_onehot)
             train_epoch_completed.send(
                 model, epoch=epoch, 
@@ -273,7 +265,7 @@ def generate(
 
     # Initialize the model and hidden state
     model = GRU()
-    H = jnp.zeros((hidden_size, 1))
+    H = jnp.zeros((1, 1, hidden_size))
 
     # Feed the prefix to the model
     X = jnp.eye(vocab_size)[prefix, :]
@@ -291,6 +283,7 @@ def generate(
     for _ in range(max_len):
 
         # Feed the previous output into the model
+        print("H.shape", H.shape)
         H, Y_pred = model(params=params, H=H, X=Y_pred)
 
         # Retrieve the token and append to output
@@ -298,7 +291,6 @@ def generate(
         probs = jax.nn.softmax(Y_pred)
         rng, sub_rng = random.split(rng)
         pred_token_idx = random.categorical(sub_rng, jnp.log(probs))
-        #pred_token_idx = jnp.argmax(Y_pred)
         output.append(int(pred_token_idx))
 
         # Reformat the output for the model
