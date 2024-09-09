@@ -36,14 +36,19 @@ class BasicDotProdAttention:
     inputs: 
     """
 
-    def __call__(self, inputs: Array):
+    def __call__(self, query: Array, keys: Array):
+        
+        query # (batch_size, hidden_dim)
+        keys # (batch_size, timesteps, hidden_dim)
+        d_k = keys.shape[2]
 
-        inputs_T = jnp.transpose(inputs, (0, 2, 1)) # (batch_size, hidden_dim, timesteps)
-        attn_scores = jnp.matmul(inputs, inputs_T) # (batch_size, timesteps, timesteps)
-        attn_weights =  jax.nn.softmax(attn_scores, axis=2)  # (batch_size, timesteps, timesteps)
-        outputs = jnp.matmul(attn_weights, inputs) # (batch_size, timesteps, hidden_dim)
-        outputs = jnp.mean(outputs, axis=1) # (batch_size, hidden_dim)
-        return outputs 
+        query = jnp.expand_dims(query, axis=1)
+        scores = jnp.sum(query * keys, axis=2) / jnp.sqrt(d_k) # (batch_size, timesteps)
+        attn_weights = jax.nn.softmax(scores, axis=1) # (batch_size, timesteps)
+        attn_weights = jnp.expand_dims(attn_weights, axis=2) # (batch_size, timesteps, 1)
+        weighted_keys = jnp.sum(keys * attn_weights, axis=1) # (batch_size, hidden_dim) 
+
+        return weighted_keys # (batch_size, hidden_dim)
         
 
 class GRU:
@@ -60,19 +65,19 @@ class GRU:
 
         # Loop over the sequence
         for i in range(X.shape[1]):
-            # First compute the context vector using the previous Hidden states
-            Ct = attn(H) 
             # Then retrieve the current input token
             Xt = X[:, i, :]  # (batch_size x vocab_size)
             # Then retrieve the previous hidden state
-            Ht = H[:, i, :]  # (batch_size x hidden_size)
+            Ht = H[:, -1, :]  # (batch_size x hidden_size)
             # Then calculate the Reset and Update gates
             R = _sgm(jnp.dot(Xt, Wxr) + jnp.dot(Ht, Whr) + br) # (batch_size x hidden_size)
             Z = _sgm(jnp.dot(Xt, Wxz) + jnp.dot(Ht, Whz) + bz) # (batch_size) x hidden_size)
             # Then calculate the candidate Hidden state
             Hc = _sgm(jnp.dot(Xt, Wxh) + R * jnp.dot(Ht, Whh) + bh) # (batch_size x hidden_size)
             # Then calculate the final Hidden state
-            Ht = Z * Ht + (1 - Z) * Hc # (hidden_size x batch_size)
+            Ht = Z * Ht + (1 - Z) * Hc # (batch_size x hidden_size)
+            # Compute the context vector using the previous Hidden states
+            Ct = attn(Ht, H) 
             # Calculate the output logits
             Yt = jnp.dot(jnp.concatenate((Ht, Ct), axis=1), Why) + by
             # Update the output sequence
@@ -283,7 +288,6 @@ def generate(
     for _ in range(max_len):
 
         # Feed the previous output into the model
-        print("H.shape", H.shape)
         H, Y_pred = model(params=params, H=H, X=Y_pred)
 
         # Retrieve the token and append to output
