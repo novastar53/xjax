@@ -20,7 +20,8 @@ __all__ = [
     "gru",
     "train",
     "predict",
-    "generate",
+    "generate",  
+    "perplexity",
     "_sample",
 ]
 
@@ -230,16 +231,11 @@ def train(
         if epoch % 20 == 0:
             # Calculate validation loss 
             rng, sub_rng = jax.random.split(rng)
-            X_valid_onehot = jnp.eye(vocab_size)[X_valid, :]
-            Y_valid_onehot = jnp.eye(vocab_size)[Y_valid, :]
-            valid_set_size = X_valid.shape[0]
-            hidden_size = params[0].shape[1]
-            H = jnp.zeros((valid_set_size, 1, hidden_size))
-            valid_loss = _loss(model, params, H, X_valid_onehot, Y_valid_onehot)
+            valid_per = perplexity(model, params, vocab_size, X_valid, Y_valid)
             train_epoch_completed.send(
                 model, epoch=epoch, 
                 train_loss=epoch_loss, 
-                valid_loss=valid_loss,
+                valid_perplexity=valid_per,
                 elapsed=(time() - start_time)
             )
 
@@ -247,21 +243,18 @@ def train(
     return params
 
 
-def predict(
-    model: GRU, *, rng: Array, params: Parameters, vocab_size: int, h: Array, x: Array
-):
+def perplexity(model, params, vocab_size, X, Y):
 
-    h, y_logits = model(params=params, 
-                        H=h, 
-                        X=x)
-    y_pred = jax.nn.softmax(y_logits, axis=1)
+    X_onehot = jnp.eye(vocab_size)[X, :]
+    Y_onehot = jnp.eye(vocab_size)[Y, :]
+    batch_size = X.shape[0]
+    hidden_size = params[0].shape[1]
+    H = jnp.zeros((batch_size, 1, hidden_size))
+    bce = _loss(model, params, H, X_onehot, Y_onehot)
 
-    # randomly select an output token based on the probabilities
-    idx = jax.random.choice(key=rng, a=vocab_size, p=y_pred[0, :])
-    y_pred = jnp.zeros_like(x)
-    y_pred = y_pred.at[0, idx].set(1)
+    return 2**bce
 
-    return h, y_pred
+
 
 
 def generate(

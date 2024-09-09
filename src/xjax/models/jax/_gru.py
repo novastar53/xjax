@@ -22,6 +22,7 @@ __all__ = [
     "train",
     "predict",
     "generate",
+    "perplexity",
     "_sample",
 ]
 
@@ -208,16 +209,11 @@ def train(
         if epoch % 20 == 0:
             # Calculate validation loss 
             rng, sub_rng = jax.random.split(rng)
-            X_valid_onehot = jnp.eye(vocab_size)[X_valid, :]
-            Y_valid_onehot = jnp.eye(vocab_size)[Y_valid, :]
-            hidden_size = params[0].shape[0]
-            valid_set_size = X_valid.shape[0]
-            H = jnp.zeros((hidden_size,valid_set_size))
-            valid_loss = _loss(model, params, H, X_valid_onehot, Y_valid_onehot)
+            valid_perp = perplexity(model, params, vocab_size, X_valid, Y_valid)
             train_epoch_completed.send(
                 model, epoch=epoch, 
                 train_loss=epoch_loss, 
-                valid_loss=valid_loss,
+                valid_perplexity=valid_perp,
                 elapsed=(time() - start_time)
             )
 
@@ -240,6 +236,18 @@ def predict(
     y_pred = y_pred.at[0, idx].set(1)
 
     return h, y_pred
+
+
+def perplexity(model, params, vocab_size, X, Y):
+
+    X_onehot = jnp.eye(vocab_size)[X, :]
+    Y_onehot = jnp.eye(vocab_size)[Y, :]
+    batch_size = X.shape[0]
+    hidden_size = params[0].shape[0]
+    H = jnp.zeros((hidden_size, batch_size))
+    bce = _loss(model, params, H, X_onehot, Y_onehot)
+
+    return 2**bce
 
 
 def generate(
