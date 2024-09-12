@@ -23,7 +23,8 @@ Aeolosaurus
 Aepisaurus
 Aepyornithomimus
 Aerosteon
-AetonyxAfromimus
+Aetonyx
+Afromimus
 Afrovenator
 Agathaumas
 Aggiosaurus
@@ -383,7 +384,8 @@ Diabloceratops
 Diamantinasaurus
 Dianchungosaurus
 Diceratops
-DiceratusDiclonius
+Diceratus
+Diclonius
 Dicraeosaurus
 DidanodonDilong
 Dilophosaurus
@@ -633,7 +635,8 @@ Hulsanpes
 Hungarosaurus
 Huxleysaurus
 Hylaeosaurus
-HylosaurusHypacrosaurus
+Hylosaurus
+Hypacrosaurus
 Hypselorhachis
 Hypselosaurus
 Hypselospinus
@@ -701,7 +704,8 @@ Katsuyamasaurus
 Kayentavenator
 Kazaklambia
 Kelmayisaurus
-KemkemiaKentrosaurus
+Kemkemia
+Kentrosaurus
 Kentrurosaurus
 Kerberosaurus
 Kentrosaurus
@@ -789,7 +793,8 @@ Linhenykus
 Linheraptor
 Linhevenator
 Lirainosaurus
-LisboasaurusLiubangosaurus
+Lisboasaurus
+Liubangosaurus
 Lohuecotitan
 Loncosaurus
 Longisquama
@@ -964,8 +969,10 @@ Oohkotokia
 Opisthocoelicaudia
 Oplosaurus
 Orcomimus
-OrinosaurusOrkoraptor
-OrnatotholusOrnithodesmus
+Orinosaurus
+Orkoraptor
+Ornatotholus
+Ornithodesmus
 Ornithoides
 Ornitholestes
 Ornithomerus
@@ -1411,7 +1418,6 @@ Tylocephale
 Tylosteus
 Tyrannosaurus
 Tyrannotitan
-Illustration
 Uberabatitan
 Udanoceratops
 Ugrosaurus
