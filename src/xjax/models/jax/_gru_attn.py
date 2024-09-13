@@ -10,6 +10,7 @@ import jax.numpy as jnp
 from jax import random
 from jax.nn import log_softmax
 
+from xjax.layers import BasicDotProdAttention
 from xjax.tools import default_arg
 from xjax.signals import train_epoch_started, train_epoch_completed
 
@@ -29,29 +30,6 @@ __all__ = [
 def _sgm(x):
     return 1 / (1 + jnp.exp(-x))
 
-class BasicDotProdAttention:
-    """
-    A basic non-parameterized dot-product self-attention layer 
-    for time sequences
-    
-    inputs: 
-    """
-
-    def __call__(self, query: Array, keys: Array):
-        
-        query # (batch_size, hidden_dim)
-        keys # (batch_size, timesteps, hidden_dim)
-        d_k = keys.shape[2]
-
-        query = jnp.expand_dims(query, axis=1)
-        scores = jnp.sum(query * keys, axis=2) / jnp.sqrt(d_k) # (batch_size, timesteps)
-        attn_weights = jax.nn.softmax(scores, axis=1) # (batch_size, timesteps)
-        attn_weights = jnp.expand_dims(attn_weights, axis=2) # (batch_size, timesteps, 1)
-        weighted_keys = jnp.sum(keys * attn_weights, axis=1) # (batch_size, hidden_dim) 
-
-        return weighted_keys # (batch_size, hidden_dim)
-        
-
 class GRU:
 
     # Calculate the forward pass
@@ -59,27 +37,26 @@ class GRU:
                 
         # Extract the parameters
         Wxr, Whr, Wxz, Whz, Wxh, Whh, Why, br, bz, bh, by = params
-        # Initialize the attention layer
-        attn = BasicDotProdAttention()
         # Initialize the output logits
         Y = jnp.empty_like(X)
 
         # Loop over the sequence
         for i in range(X.shape[1]):
-            # Then retrieve the current input token
+            # Retrieve the current input token
             Xt = X[:, i, :]  # (batch_size x vocab_size)
-            # Then retrieve the previous hidden state
+            # Retrieve the previous hidden state
             Ht = H[:, -1, :]  # (batch_size x hidden_size)
-            # Then calculate the Reset and Update gates
+            # Calculate the Reset and Update gates
             R = _sgm(jnp.dot(Xt, Wxr) + jnp.dot(Ht, Whr) + br) # (batch_size x hidden_size)
             Z = _sgm(jnp.dot(Xt, Wxz) + jnp.dot(Ht, Whz) + bz) # (batch_size) x hidden_size)
-            # Then calculate the candidate Hidden state
+            # Calculate the candidate Hidden state
             Hc = _sgm(jnp.dot(Xt, Wxh) + R * jnp.dot(Ht, Whh) + bh) # (batch_size x hidden_size)
-            # Then calculate the final Hidden state
+            # Calculate the final Hidden state
             Ht = Z * Ht + (1 - Z) * Hc # (batch_size x hidden_size)
-            # Compute the context vector using the previous Hidden states
-            Ct = attn(Ht, H) 
-            # Calculate the output logits
+            # Compute the context vector using attention layer
+            Ct = BasicDotProdAttention()(query=Ht, keys=H, values=H) 
+            # Calculate the output logits from the 
+            # Hidden State and the Context vector
             Yt = jnp.dot(jnp.concatenate((Ht, Ct), axis=1), Why) + by
             # Update the output sequence
             Y = Y.at[:, i, :].set(Yt)
@@ -90,7 +67,9 @@ class GRU:
         # Return the updated Hidden State and the output logits
         return H, Y
 
-def _init_W(rng: Array, dim1: int, dim2: int, sigma=0.01):
+
+def _init_W(rng: Array, dim1: int, dim2: int, sigma: float | None = None):
+    sigma = default_arg(sigma, 1/jnp.sqrt(dim1))
     return jax.random.normal(rng, shape=(dim1, dim2)) * sigma
 
 
@@ -253,7 +232,6 @@ def perplexity(model, params, vocab_size, X, Y):
     bce = _loss(model, params, H, X_onehot, Y_onehot)
 
     return 2**bce
-
 
 
 

@@ -165,9 +165,6 @@ def train(
     loss = None
     for epoch in range(epochs):
 
-        # Emit signal
-        train_epoch_started.send(model, epoch=epoch, elapsed=(time() - start_time))
-
         epoch_loss = 0
         for _ in range(len(X_train)):
             rng, sub_rng = jax.random.split(rng)
@@ -176,9 +173,10 @@ def train(
             epoch_loss += loss
 
         # Emit signal
-        train_epoch_completed.send(
-            model, epoch=epoch, loss=epoch_loss, elapsed=(time() - start_time)
-        )
+        if epoch % 10 == 0:
+            train_epoch_completed.send(
+                model, epoch=epoch, loss=epoch_loss, elapsed=(time() - start_time)
+            )
 
     return params
 
@@ -201,7 +199,8 @@ def _loss(model, params, h, X_batch, y_batch):
 
     _, y_logits = model(params, h, X_batch)
 
-    return optax.sigmoid_binary_cross_entropy(y_logits, y_batch).mean()
+    #return optax.sigmoid_binary_cross_entropy(y_logits, y_batch).mean()
+    return optax.losses.softmax_cross_entropy(logits=y_logits, labels=y_batch).mean()
 
 
 def _step(loss_fn, optimizer, max_grad, optimizer_state, params, X_batch, Y_batch):

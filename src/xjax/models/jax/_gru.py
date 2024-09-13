@@ -56,7 +56,6 @@ class GRU:
 
             # Finally, calculate the output logits
             Yt = jnp.dot(Why, H) + by
-            #Yt = jnp.squeeze(Yt)
 
             # Update the output sequence
             Y.append(Yt)
@@ -65,12 +64,18 @@ class GRU:
         return H, jnp.stack(Y)
 
 
-def _init_W(rng: Array, dim1: int, dim2: int, sigma=0.01):
+def _init_W(rng: Array, dim1: int, dim2: int, sigma: float | None = None):
+
+    sigma = default_arg(sigma, 1/jnp.sqrt(dim1))
+    #sigma = 0.01
+
     return jax.random.normal(rng, shape=(dim1, dim2)) * sigma
 
 
-def _init_b(dim: int):
-    return jnp.zeros((dim, 1))
+def _init_b(dim: int, default_init: int | None = None):
+    if default_init == None:
+        return jnp.zeros((dim, 1))
+    return jnp.array([[default_init]*dim]).reshape((dim, 1))
 
 
 def gru(rng: Array, vocab_size: int, hidden_size: int):
@@ -85,7 +90,7 @@ def gru(rng: Array, vocab_size: int, hidden_size: int):
     rng, sub_rng = jax.random.split(rng)
     Whr = _init_W(sub_rng, hidden_size, hidden_size)
 
-    br = _init_b(hidden_size)
+    br = _init_b(hidden_size, default_init=0.0)
 
     # Update Gate
     # Used to calculate a linear combination of
@@ -143,7 +148,10 @@ def _loss(model: GRU, params: Parameters, H: Array, X_batch: Array, Y_batch: Arr
                         H=H, 
                         X=X_batch)
     Y_batch = jnp.transpose(Y_batch, (1, 2, 0))
-    return optax.sigmoid_binary_cross_entropy(Y_logits, Y_batch).mean()
+    #Y_logits = Y_logits.flatten()
+    #Y_batch = Y_batch.flatten()
+    return optax.losses.softmax_cross_entropy(logits=Y_logits, labels=Y_batch).mean()
+    #return optax.sigmoid_binary_cross_entropy(Y_logits, Y_batch).mean()
 
 def _step(loss_fn, optimizer, max_grad, optimizer_state, params, X_batch, Y_batch):
 
@@ -165,8 +173,8 @@ def train(
     params: Parameters,
     X_train: jax.Array,
     Y_train: jax.Array,
-    X_valid: jax.Array,
-    Y_valid: jax.Array,
+    X_valid: jax.Array | None = None,
+    Y_valid: jax.Array | None = None,
     vocab_size,
     batch_size: int | None = None,
     num_epochs: int | None = None,
@@ -189,14 +197,12 @@ def train(
     # set up the loss function
     loss_fn = jax.value_and_grad(partial(_loss, model))
     step_fn = jax.jit(partial(_step, loss_fn, optimizer, max_grad))
+    #step_fn = partial(_step, loss_fn, optimizer, max_grad)
 
     # loop through epochs
 
     loss = None
     for epoch in range(num_epochs):
-
-        # Emit signal
-        #train_epoch_started.send(model, epoch=epoch, elapsed=(time() - start_time))
 
         epoch_loss = 0
         for _ in range(len(X_train)//batch_size):
@@ -209,13 +215,14 @@ def train(
         if epoch % 20 == 0:
             # Calculate validation loss 
             rng, sub_rng = jax.random.split(rng)
-            valid_perp = perplexity(model, params, vocab_size, X_valid, Y_valid)
-            train_epoch_completed.send(
-                model, epoch=epoch, 
-                train_loss=epoch_loss, 
-                valid_perplexity=valid_perp,
-                elapsed=(time() - start_time)
-            )
+            if X_valid is not None and Y_valid is not None:
+                valid_perp = perplexity(model, params, vocab_size, X_valid, Y_valid)
+                train_epoch_completed.send(
+                    model, epoch=epoch, 
+                    train_loss=epoch_loss, 
+                    valid_perplexity=valid_perp,
+                    elapsed=(time() - start_time)
+                )
 
     
     return params
@@ -281,7 +288,6 @@ def generate(
         probs = jax.nn.softmax(Y_pred)
         rng, sub_rng = random.split(rng)
         pred_token_idx = random.categorical(sub_rng, jnp.log(probs))
-        #pred_token_idx = jnp.argmax(Y_pred)
         output.append(int(pred_token_idx))
 
         # Reformat the output for the model
