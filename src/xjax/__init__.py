@@ -1,8 +1,9 @@
-from . import datasets, models, plots, signals, tools
+from . import datasets, models, layers, plots, signals, tools
 
 __all__ = [
     "datasets",
     "models",
+    "layers",
     "plots",
     "signals",
     "tools",

@@ -19,5 +19,6 @@ train_epoch_completed = signal("train_epoch_completed")
 Keyword Args:
     epoch (int): the epoch
     loss (float): the training loss of last batch in epoch
+    validation_loss (float): the validation loss of teh last batch in the epoch
     elapsed (float): elapsed time since training started
 """
