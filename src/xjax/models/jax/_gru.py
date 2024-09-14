@@ -90,7 +90,7 @@ def gru(rng: Array, vocab_size: int, hidden_size: int):
     rng, sub_rng = jax.random.split(rng)
     Whr = _init_W(sub_rng, hidden_size, hidden_size)
 
-    br = _init_b(hidden_size, default_init=0.0)
+    br = _init_b(hidden_size, default_init=1.0)
 
     # Update Gate
     # Used to calculate a linear combination of
@@ -147,11 +147,10 @@ def _loss(model: GRU, params: Parameters, H: Array, X_batch: Array, Y_batch: Arr
     _, Y_logits = model(params=params, 
                         H=H, 
                         X=X_batch)
-    Y_batch = jnp.transpose(Y_batch, (1, 2, 0))
-    #Y_logits = Y_logits.flatten()
-    #Y_batch = Y_batch.flatten()
-    return optax.losses.softmax_cross_entropy(logits=Y_logits, labels=Y_batch).mean()
-    #return optax.sigmoid_binary_cross_entropy(Y_logits, Y_batch).mean()
+
+    Y_logits = jnp.transpose(Y_logits, (2, 0, 1))
+    loss = optax.losses.softmax_cross_entropy(logits=Y_logits, labels=Y_batch)
+    return loss.mean()
 
 def _step(loss_fn, optimizer, max_grad, optimizer_state, params, X_batch, Y_batch):
 
@@ -205,24 +204,31 @@ def train(
     for epoch in range(num_epochs):
 
         epoch_loss = 0
-        for _ in range(len(X_train)//batch_size):
+        num_iter = len(X_train)//batch_size
+        for _ in range(num_iter):
             rng, sub_rng = jax.random.split(rng)
             X_batch, Y_batch = _sample(sub_rng, X_train, Y_train, batch_size, vocab_size)
             params, optimizer_state, loss = step_fn(optimizer_state, params, X_batch, Y_batch)
             epoch_loss += loss
-
+        epoch_loss = epoch_loss/num_iter
         # Emit signal
         if epoch % 20 == 0:
             # Calculate validation loss 
             rng, sub_rng = jax.random.split(rng)
+            valid_perp=None
             if X_valid is not None and Y_valid is not None:
                 valid_perp = perplexity(model, params, vocab_size, X_valid, Y_valid)
-                train_epoch_completed.send(
-                    model, epoch=epoch, 
-                    train_loss=epoch_loss, 
-                    valid_perplexity=valid_perp,
-                    elapsed=(time() - start_time)
-                )
+            train_epoch_completed.send(
+                model, epoch=epoch, train_loss=epoch_loss, valid_perplexity=valid_perp, elapsed=(time() - start_time)
+            )
+
+    valid_perp=None
+    if X_valid is not None and Y_valid is not None:
+        valid_perp = perplexity(model, params, vocab_size, X_valid, Y_valid)
+    train_epoch_completed.send(
+        model, epoch=epoch, train_loss=epoch_loss, valid_perplexity=valid_perp, elapsed=(time() - start_time)
+    )
+
 
     
     return params
@@ -252,9 +258,9 @@ def perplexity(model, params, vocab_size, X, Y):
     batch_size = X.shape[0]
     hidden_size = params[0].shape[0]
     H = jnp.zeros((hidden_size, batch_size))
-    bce = _loss(model, params, H, X_onehot, Y_onehot)
+    loss = _loss(model, params, H, X_onehot, Y_onehot)
 
-    return 2**bce
+    return 2**loss
 
 
 def generate(
