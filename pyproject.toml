@@ -50,13 +50,13 @@ dependencies = [
   "wandb",
   "xgboost",
   "nltk",
-
   "build",
   "pytest",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-xdist",
   "ruff",
+  "tensorflow-datasets",
 ]
 
 [project.urls]

@@ -129,7 +129,7 @@ $(REQUIREMENTS): pyproject.toml | $(VENV)
 	@echo -e "$(COLOR_H1)# $@$(COLOR_RESET)"
 	@echo
 
-	source $(VENV) && uv pip compile -o $@ pyproject.toml
+	source $(VENV) && uv pip compile --python-platform $(PLATFORM) -o $@ pyproject.toml
 
 	@echo -e "$(COLOR_COMMENT)# Add Project$(COLOR_RESET)"
 	echo "-e file://." >> $@
@@ -144,7 +144,7 @@ PHONIES := $(PHONIES) requirements
 #-------------------------------------------------------------------------------
 
 $(DEPENDENCIES): $(REQUIREMENTS) | $(BUILD_DIR)
-	source $(VENV) && uv pip sync $(REQUIREMENTS)
+	source $(VENV) && uv pip sync --python-platform $(PLATFORM) $(REQUIREMENTS)
 	@echo
 	@echo -e "$(COLOR_COMMENT)# Activate venv: $(COLOR_OK)source $(VENV)$(COLOR_RESET)"
 	@echo -e "$(COLOR_COMMENT)# Deactivate venv: $(COLOR_OK)deactivate$(COLOR_RESET)"
