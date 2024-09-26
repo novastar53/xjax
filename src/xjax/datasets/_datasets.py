@@ -14,7 +14,6 @@ __all__ = [
 ]
 
 
-
 def freq_word_pair(*, num_sentences: int | None = None,
            len_sentence: int | None = None,
            vocab: List[str] | None = None,

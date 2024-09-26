@@ -313,9 +313,15 @@ def test_nlp_jax_sgns(rng: jax.Array):
     # Hyperparams
     embedding_size = 2
     batch_size = 10
+<<<<<<< HEAD
     neg_per_pos = 20
     num_epochs = 3
     window_size = 3
+=======
+    neg_per_pos = 5
+    num_epochs = 5
+    window_size = 2
+>>>>>>> upstream/main
     vocab_size = 5
     K=1
 

@@ -20,7 +20,6 @@ Parameters = Mapping[str, Any]
 
 logger = logging.getLogger(__name__)
 
-
 class SGNS:
 
     def __call__(self, params, X):

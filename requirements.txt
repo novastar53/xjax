@@ -64,7 +64,10 @@ click==8.1.7
     # via
     #   black
     #   nltk
+<<<<<<< HEAD
     #   tensorflow-datasets
+=======
+>>>>>>> upstream/main
     #   wandb
 comm==0.2.2
     # via ipykernel
@@ -104,6 +107,7 @@ filelock==3.15.4
     #   huggingface-hub
     #   torch
     #   transformers
+    #   triton
 flake8==7.1.1
     # via nbqa
 flax==0.8.5
@@ -571,7 +575,10 @@ tqdm==4.66.5
     #   etils
     #   huggingface-hub
     #   nltk
+<<<<<<< HEAD
     #   tensorflow-datasets
+=======
+>>>>>>> upstream/main
     #   transformers
 traitlets==5.14.3
     # via
