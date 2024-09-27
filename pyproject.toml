@@ -37,6 +37,7 @@ dependencies = [
   "blinker",
   "cupy; sys_platform == 'linux'",
   "flax",
+  "gcsfs",
   "jax[cuda12]; sys_platform == 'linux'",
   "jupyterlab",
   "nbqa[toolchain]",
@@ -56,6 +57,7 @@ dependencies = [
   "pytest-cov",
   "pytest-xdist",
   "ruff",
+  "tensorflow",
   "tensorflow-datasets",
 ]
 
