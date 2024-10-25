@@ -57,6 +57,7 @@ dependencies = [
   "pytest-cov",
   "pytest-xdist",
   "ruff",
+  "spacy",
   "tensorflow",
   "tensorflow-datasets",
 ]
