@@ -114,7 +114,7 @@ $(BUILD_DIR):
 #-------------------------------------------------------------------------------
 
 $(VENV):
-	uv venv --seed
+	uv venv --python 3.11 --seed
 
 venv: $(VENV)
 PHONIES := $(PHONIES) venv

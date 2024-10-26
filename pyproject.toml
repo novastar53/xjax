@@ -19,7 +19,7 @@ build-backend = "hatchling.build"
 [project]
 
 name = "xjax"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.12"
 
 authors = [
   {name = "Andrew Young", email = "joven@alum.wpi.edu"},
@@ -57,9 +57,10 @@ dependencies = [
   "pytest-cov",
   "pytest-xdist",
   "ruff",
-  "spacy",
   "tensorflow",
   "tensorflow-datasets",
+  "tensorflow-text",
+  "datasets",
 ]
 
 [project.urls]

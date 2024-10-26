@@ -14,11 +14,12 @@ absl-py==2.1.0
 aiohappyeyeballs==2.4.0
     # via aiohttp
 aiohttp==3.10.6
-    # via gcsfs
+    # via
+    #   datasets
+    #   fsspec
+    #   gcsfs
 aiosignal==1.3.1
     # via aiohttp
-annotated-types==0.7.0
-    # via pydantic
 anyio==4.4.0
     # via
     #   httpx
@@ -60,17 +61,10 @@ bleach==6.1.0
     # via nbconvert
 blinker==1.8.2
     # via xjax (pyproject.toml)
-blis==0.7.11
-    # via thinc
 build==1.2.1
     # via xjax (pyproject.toml)
 cachetools==5.5.0
     # via google-auth
-catalogue==2.0.10
-    # via
-    #   spacy
-    #   srsly
-    #   thinc
 certifi==2024.7.4
     # via
     #   httpcore
@@ -88,27 +82,17 @@ click==8.1.7
     #   black
     #   nltk
     #   tensorflow-datasets
-    #   typer
     #   wandb
-cloudpathlib==0.20.0
-    # via weasel
 comm==0.2.2
     # via ipykernel
-confection==0.1.5
-    # via
-    #   thinc
-    #   weasel
 contourpy==1.2.1
     # via matplotlib
 coverage==7.6.1
     # via pytest-cov
 cycler==0.12.1
     # via matplotlib
-cymem==2.0.8
-    # via
-    #   preshed
-    #   spacy
-    #   thinc
+datasets==3.0.2
+    # via xjax (pyproject.toml)
 debugpy==1.8.5
     # via ipykernel
 decorator==5.1.1
@@ -118,7 +102,10 @@ decorator==5.1.1
 defusedxml==0.7.1
     # via nbconvert
 dill==0.3.8
-    # via pylint
+    # via
+    #   datasets
+    #   multiprocess
+    #   pylint
 dm-tree==0.1.8
     # via tensorflow-datasets
 docker-pycreds==0.4.0
@@ -138,6 +125,7 @@ fastjsonschema==2.20.0
     # via nbformat
 filelock==3.15.4
     # via
+    #   datasets
     #   huggingface-hub
     #   torch
     #   transformers
@@ -157,6 +145,7 @@ frozenlist==1.4.1
     #   aiosignal
 fsspec==2024.9.0
     # via
+    #   datasets
     #   etils
     #   gcsfs
     #   huggingface-hub
@@ -214,6 +203,7 @@ httpx==0.27.0
     # via jupyterlab
 huggingface-hub==0.24.5
     # via
+    #   datasets
     #   tokenizers
     #   transformers
 idna==3.7
@@ -261,7 +251,6 @@ jinja2==3.1.4
     #   jupyterlab
     #   jupyterlab-server
     #   nbconvert
-    #   spacy
     #   torch
 joblib==1.4.2
     # via
@@ -316,14 +305,8 @@ keras==3.5.0
     # via tensorflow
 kiwisolver==1.4.5
     # via matplotlib
-langcodes==3.4.1
-    # via spacy
-language-data==1.2.0
-    # via langcodes
 libclang==18.1.1
     # via tensorflow
-marisa-trie==1.2.1
-    # via language-data
 markdown==3.7
     # via tensorboard
 markdown-it-py==3.0.0
@@ -369,11 +352,8 @@ multidict==6.1.0
     # via
     #   aiohttp
     #   yarl
-murmurhash==1.0.10
-    # via
-    #   preshed
-    #   spacy
-    #   thinc
+multiprocess==0.70.16
+    # via datasets
 mypy==1.11.1
     # via nbqa
 mypy-extensions==1.0.0
@@ -407,9 +387,9 @@ notebook-shim==0.2.4
 numpy==1.26.4
     # via
     #   xjax (pyproject.toml)
-    #   blis
     #   chex
     #   contourpy
+    #   datasets
     #   etils
     #   flax
     #   h5py
@@ -426,12 +406,10 @@ numpy==1.26.4
     #   scikit-learn
     #   scipy
     #   seaborn
-    #   spacy
     #   tensorboard
     #   tensorflow
     #   tensorflow-datasets
     #   tensorstore
-    #   thinc
     #   transformers
     #   xgboost
 oauthlib==3.2.2
@@ -452,6 +430,7 @@ packaging==24.1
     # via
     #   black
     #   build
+    #   datasets
     #   huggingface-hub
     #   ipykernel
     #   jupyter-server
@@ -462,15 +441,13 @@ packaging==24.1
     #   matplotlib
     #   nbconvert
     #   pytest
-    #   spacy
     #   tensorboard
     #   tensorflow
-    #   thinc
     #   transformers
-    #   weasel
 pandas==2.2.2
     # via
     #   xjax (pyproject.toml)
+    #   datasets
     #   seaborn
 pandocfilters==1.5.1
     # via nbconvert
@@ -492,10 +469,6 @@ platformdirs==4.2.2
     #   wandb
 pluggy==1.5.0
     # via pytest
-preshed==3.0.9
-    # via
-    #   spacy
-    #   thinc
 prometheus-client==0.20.0
     # via jupyter-server
 promise==2.3
@@ -527,7 +500,9 @@ ptyprocess==0.7.0
 pure-eval==0.2.3
     # via stack-data
 pyarrow==17.0.0
-    # via tensorflow-datasets
+    # via
+    #   datasets
+    #   tensorflow-datasets
 pyasn1==0.6.1
     # via
     #   pyasn1-modules
@@ -540,14 +515,6 @@ pycodestyle==2.12.1
     #   flake8
 pycparser==2.22
     # via cffi
-pydantic==2.9.2
-    # via
-    #   confection
-    #   spacy
-    #   thinc
-    #   weasel
-pydantic-core==2.23.4
-    # via pydantic
 pyflakes==3.2.0
     # via flake8
 pygments==2.18.0
@@ -587,6 +554,7 @@ pyupgrade==3.17.0
     # via nbqa
 pyyaml==6.0.2
     # via
+    #   datasets
     #   flax
     #   huggingface-hub
     #   jupyter-events
@@ -610,18 +578,17 @@ regex==2024.7.24
     #   transformers
 requests==2.32.3
     # via
+    #   datasets
     #   gcsfs
     #   google-api-core
     #   google-cloud-storage
     #   huggingface-hub
     #   jupyterlab-server
     #   requests-oauthlib
-    #   spacy
     #   tensorflow
     #   tensorflow-datasets
     #   transformers
     #   wandb
-    #   weasel
 requests-oauthlib==2.0.0
     # via google-auth-oauthlib
 rfc3339-validator==0.1.4
@@ -636,7 +603,6 @@ rich==13.7.1
     # via
     #   flax
     #   keras
-    #   typer
 rpds-py==0.20.0
     # via
     #   jsonschema
@@ -667,17 +633,10 @@ setproctitle==1.3.3
     # via wandb
 setuptools==72.2.0
     # via
-    #   chex
     #   jupyterlab
-    #   marisa-trie
-    #   spacy
     #   tensorboard
     #   tensorflow
-    #   thinc
-    #   torch
     #   wandb
-shellingham==1.5.4
-    # via typer
 simple-parsing==0.1.6
     # via tensorflow-datasets
 six==1.16.0
@@ -692,8 +651,6 @@ six==1.16.0
     #   rfc3339-validator
     #   tensorboard
     #   tensorflow
-smart-open==7.0.5
-    # via weasel
 smmap==5.0.1
     # via gitdb
 sniffio==1.3.1
@@ -702,18 +659,6 @@ sniffio==1.3.1
     #   httpx
 soupsieve==2.6
     # via beautifulsoup4
-spacy==3.7.5
-    # via xjax (pyproject.toml)
-spacy-legacy==3.0.12
-    # via spacy
-spacy-loggers==1.0.5
-    # via spacy
-srsly==2.4.8
-    # via
-    #   confection
-    #   spacy
-    #   thinc
-    #   weasel
 stack-data==0.6.3
     # via ipython
 sympy==1.13.2
@@ -723,11 +668,17 @@ tensorboard==2.17.1
 tensorboard-data-server==0.7.2
     # via tensorboard
 tensorflow==2.17.0
-    # via xjax (pyproject.toml)
+    # via
+    #   xjax (pyproject.toml)
+    #   tensorflow-text
 tensorflow-datasets==4.9.6
     # via xjax (pyproject.toml)
+tensorflow-io-gcs-filesystem==0.37.1
+    # via tensorflow
 tensorflow-metadata==1.15.0
     # via tensorflow-datasets
+tensorflow-text==2.17.0
+    # via xjax (pyproject.toml)
 tensorstore==0.1.64
     # via
     #   flax
@@ -740,8 +691,6 @@ terminado==0.18.1
     # via
     #   jupyter-server
     #   jupyter-server-terminals
-thinc==8.2.5
-    # via spacy
 threadpoolctl==3.5.0
     # via scikit-learn
 tinycss2==1.3.0
@@ -771,10 +720,10 @@ tornado==6.4.1
     #   terminado
 tqdm==4.66.5
     # via
+    #   datasets
     #   etils
     #   huggingface-hub
     #   nltk
-    #   spacy
     #   tensorflow-datasets
     #   transformers
 traitlets==5.14.3
@@ -793,10 +742,6 @@ traitlets==5.14.3
     #   nbformat
 transformers==4.44.0
     # via xjax (pyproject.toml)
-typer==0.12.5
-    # via
-    #   spacy
-    #   weasel
 types-python-dateutil==2.9.0.20240316
     # via arrow
 typing-extensions==4.12.2
@@ -805,15 +750,13 @@ typing-extensions==4.12.2
     #   etils
     #   flax
     #   huggingface-hub
+    #   ipython
     #   mypy
     #   optree
     #   orbax-checkpoint
-    #   pydantic
-    #   pydantic-core
     #   simple-parsing
     #   tensorflow
     #   torch
-    #   typer
 tzdata==2024.1
     # via pandas
 uri-template==1.3.0
@@ -824,15 +767,8 @@ urllib3==2.2.2
     #   sentry-sdk
 wandb==0.17.7
     # via xjax (pyproject.toml)
-wasabi==1.1.3
-    # via
-    #   spacy
-    #   thinc
-    #   weasel
 wcwidth==0.2.13
     # via prompt-toolkit
-weasel==0.4.1
-    # via spacy
 webcolors==24.8.0
     # via jsonschema
 webencodings==0.5.1
@@ -847,11 +783,12 @@ wheel==0.44.0
     # via astunparse
 wrapt==1.16.0
     # via
-    #   smart-open
     #   tensorflow
     #   tensorflow-datasets
 xgboost==2.1.1
     # via xjax (pyproject.toml)
+xxhash==3.5.0
+    # via datasets
 yarl==1.12.1
     # via aiohttp
 zipp==3.20.0
