@@ -61,6 +61,7 @@ dependencies = [
   "tensorflow-datasets",
   "tensorflow-text",
   "datasets",
+  "fasttext",
 ]
 
 [project.urls]
