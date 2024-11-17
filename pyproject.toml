@@ -62,6 +62,7 @@ dependencies = [
   "tensorflow-text",
   "datasets",
   "fasttext",
+  "keras",
 ]
 
 [project.urls]

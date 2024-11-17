@@ -304,7 +304,9 @@ jupyterlab-server==2.27.3
 jupytext==1.16.4
     # via nbqa
 keras==3.5.0
-    # via tensorflow
+    # via
+    #   xjax (pyproject.toml)
+    #   tensorflow
 kiwisolver==1.4.5
     # via matplotlib
 libclang==18.1.1
